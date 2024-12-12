@@ -160,7 +160,7 @@ Contributions are welcome!
 ### Steps to Contribute:  
 1. **Fork the Repository:**  
    ```bash
-   git fork https://github.com/vinayak1729-web/chikitsa_ai
+   git fork https://github.com/vinayak1729-web/chikitsa
    ```  
 
 2. **Create Your Feature Branch:**  
