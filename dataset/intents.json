@@ -10,6 +10,14 @@
         },
         {
             "patterns": [
+                "Hello, I am not feeling sad. The user is in a sad mood and is not paying attention."
+            ],
+            "responses": [
+                "Hey hey! Kya hua? (What happened?) You say you're not sad, but you seem a bit... low energy.  Something on your mind? Tell me, I'm all ears. Remember, I'm Chikitsa, your friend *and* your AI companion, always here to help.  \n\nLet's play a quick game - what's the first word that comes to your mind when I say \"shadow fight?\"  (Referencing the game they mentioned liking, attempting to draw them into conversation)."
+            ]
+        },
+        {
+            "patterns": [
                 "Hello. The user is in a neutral mood and is not paying attention."
             ],
             "responses": [
