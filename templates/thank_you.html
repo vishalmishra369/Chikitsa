@@ -35,7 +35,7 @@
 }
 
 body {
-    font-family: 'Inter', sans-serif;
+    font-family: 'poppins', sans-serif;
     background: linear-gradient(135deg, var(--background-gradient-start) 0%, var(--background-gradient-end) 100%);
     color: var(--text-color-dark);
     line-height: 1.6;
@@ -220,7 +220,7 @@ footer span {
                 <div class="d-flex align-items-center">
                     {% if user_name and user_name.is_authenticated %}
                         <span class="navbar-text me-3">👋 Welcome, {{ user_name }}!</span>
-                        <a href="{{ url_for('logout') }}" class="btn btn-outline-danger">Logout</a>
+                        <a  class="btn btn-outline-danger "href="{{ url_for('logout') }}">Logout</a>
                     {% else %}
                         <a class="nav-link" href="{{ url_for('login') }}">🔑 Login</a>
                     {% endif %}
@@ -234,7 +234,7 @@ footer span {
     </header>
 
     <!-- Display feedback from Gemini -->
-    <p id="judgeGemini" style="font-size: 14px;">{{ judge_gemini }}</p>
+    <p id="judgeGemini"  style="font-size: 14px;">{{ judge_gemini }}</p>
     <!-- <button class="sbtn" onclick="showComplete()">Show complete</button> -->
 <br><br><br>
     <!-- Welcome Message -->
@@ -296,6 +296,28 @@ footer span {
 
     <!-- Font Awesome for icons -->
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <script>
+            function convertMarkdown() {
+            const markdownText = document.getElementById('judgeGemini').value;
+
+            // Convert Markdown to HTML
+            const htmlText = markdownText
+                .replace(/(?:\*\*|__)(.*?)\1/g, '<b>$1</b>')        // Bold
+                .replace(/(?:\*|_)(.*?)\1/g, '<i>$1</i>')          // Italic
+                .replace(/~~~(.*?)~~~/g, '<strike>$1</strike>')     // Strikethrough
+                .replace(/`([^`]+)`/g, '<code>$1</code>')           // Inline code
+                .replace(/^#{1,6} (.*)$/gm, (match, p1) => {         // Headings
+                    let level = match.indexOf(" ");
+                    return `<h${level + 1}>${p1}</h${level + 1}>`;
+                })
+                .replace(/> (.*)$/gm, '<blockquote>$1</blockquote>') // Blockquote
+                .replace(/^\s*[-+*] (.*)$/gm, '<ul><li>$1</li></ul>') // Unordered list
+                .replace(/\d+\. (.*)$/gm, '<ol><li>$1</li></ol>');   // Ordered list
+            
+            // Display the converted HTML
+            document.getElementById('judgeGemini').innerHTML = htmlText;
+        }
+    </script>
 </body>
 
 </html>

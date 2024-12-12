@@ -19,13 +19,19 @@ from image_analysis import analyze_image
 from werkzeug.utils import secure_filename
 from trained_chikitsa import chatbot_response
 import cv2
+import numpy as np
 # Load environment variables
 load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = 'secret_key'
-
+api_keys = np.array([
+    "AIzaSyC1a2S3E99ZSrB8dI-cjXsNj7bMCGGQM9Q",
+    "AIzaSyBZme8hfqXYYv-l1MLWD1_BtpEXKkNR_zo",
+    "AIzaSyCuDci63aGqPBKRuEX2lKIo8k4GCsvc2E4",
+    "AIzaSyCk-1Jm2uSTq3rPf_9Za4PZKokbPLBz5fI"
+])
 # Configure upload folder and allowed extensions
 UPLOAD_FOLDER = 'image_analysis/uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -156,15 +162,7 @@ def save_responses_to_csv(responses):
     # Save to CSV
     df.to_csv('responses/open_end_questions_responses.csv', mode='w', header=not file_exists, index=False)
 
-# @app.route('/thank_you')
-# def thank_you():
-    
-#     close_ended_str = csv_to_string("responses/close_end_questions_responses.csv")
-#     open_ended_str = csv_to_string("responses/open_end_questions_responses.csv")
-#     default=" this is my assesment of close ended questions and open ended questions , give feed back on me "
-#     judge_gemini = gemini_chat(default+" "+close_ended_str+" "+open_ended_str)
-#     summarize = gemini_chat("summarize this in 200 words "+judge_gemini)
-#     return render_template('thank_you.html', judge_gemini=summarize)
+
 @app.route('/thank_you')
 def thank_you():
     # Get the email from the session
@@ -177,13 +175,28 @@ def thank_you():
     else:
         user_name = "Guest"  # Default to "Guest" if email is not in the session
 
+    def fetch_gemini_feedback(prompt, keys, current_index=0):
+        if current_index >= len(keys):
+            raise Exception("All API keys have been exhausted.")
+        
+        try:
+            genai.configure(api_key=keys[current_index])
+            response = gemini_chat(prompt)
+            return response
+        except Exception as e:
+            if 'quota' in str(e).lower() or 'exceeded' in str(e).lower():
+                # Move to the next API key if current one is exhausted
+                return fetch_gemini_feedback(prompt, keys, current_index + 1)
+            else:
+                raise e
+
     # Generate the Gemini feedback
     close_ended_str = csv_to_string("responses/close_end_questions_responses.csv")
     open_ended_str = csv_to_string("responses/open_end_questions_responses.csv")
     default = "This is my assessment of close-ended questions and open-ended questions. Please provide feedback on me."
     judge_gemini = gemini_chat(default + " " + close_ended_str + " " + open_ended_str)
-    mainprompt="Please summarize the following content in 150 words. Analyze my strengths and weaknesses, identify areas for improvement, and provide actionable suggestions on how to improve. Also, give an honest assessment of my mental health and well-being based on the content provided. Keep in mind that you are my digital psychiatrist, my best friend, and a well-rounded expert in various fields of knowledge. Your feedback should be constructive, empathetic, and based on your understanding of the information provided. Help me grow by offering insights on how I can become a better version of myself, both personally and professionally. at last summarize in only 150 words or less then it add some emogies for representing more connection "
-    summarize = gemini_chat(mainprompt+judge_gemini)
+    mainprompt="Please summarize the following content in 200 words. Analyze my strengths and weaknesses, identify areas for improvement, and provide actionable suggestions on how to improve. Also, give an honest assessment of my mental health and well-being based on the content provided. Keep in mind that you are my digital psychiatrist, my best friend, and a well-rounded expert in various fields of knowledge. Your feedback should be constructive, empathetic, and based on your understanding of the information provided. Help me grow by offering insights on how I can become a better version of myself, both personally and professionally. at last summarize in only 150 words or less then it add some emogies for representing more connection "
+    summarize = fetch_gemini_feedback(mainprompt + judge_gemini, api_keys)
     return render_template('thank_you.html', judge_gemini=summarize, user_name=user_name ,completejudege=judge_gemini)
 
 

@@ -1,232 +1,28 @@
-finish_reason: SAFETY
-index: 0
-safety_ratings {
-  category: HARM_CATEGORY_SEXUALLY_EXPLICIT
-  probability: MEDIUM
+400 API key expired. Please renew the API key. [reason: "API_KEY_INVALID"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "generativelanguage.googleapis.com"
 }
-safety_ratings {
-  category: HARM_CATEGORY_HATE_SPEECH
-  probability: NEGLIGIBLE
+, locale: "en-US"
+message: "API key expired. Please renew the API key."
+]
+400 API key expired. Please renew the API key. [reason: "API_KEY_INVALID"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "generativelanguage.googleapis.com"
 }
-safety_ratings {
-  category: HARM_CATEGORY_HARASSMENT
-  probability: NEGLIGIBLE
+, locale: "en-US"
+message: "API key expired. Please renew the API key."
+]
+400 API key expired. Please renew the API key. [reason: "API_KEY_INVALID"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "generativelanguage.googleapis.com"
 }
-safety_ratings {
-  category: HARM_CATEGORY_DANGEROUS_CONTENT
-  probability: NEGLIGIBLE
-}
-
-Invalid input: 'content' argument must not be empty. Please provide a non-empty value.
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-Error: 429 Resource has been exhausted (e.g. check quota).
-Error: 429 Resource has been exhausted (e.g. check quota).
-Error: 429 Resource has been exhausted (e.g. check quota).
-Error: 429 Resource has been exhausted (e.g. check quota).
-Error: 429 Resource has been exhausted (e.g. check quota).
-Error: Invalid input: 'content' argument must not be empty. Please provide a non-empty value.
-Error: Invalid input: 'content' argument must not be empty. Please provide a non-empty value.
-Error: Invalid input: 'content' argument must not be empty. Please provide a non-empty value.
-Error: Invalid input: 'content' argument must not be empty. Please provide a non-empty value.
-Error: Invalid input: 'content' argument must not be empty. Please provide a non-empty value.
-Error: Invalid input: 'content' argument must not be empty. Please provide a non-empty value.
-Error: Invalid input: 'content' argument must not be empty. Please provide a non-empty value.
-Error: Invalid input: 'content' argument must not be empty. Please provide a non-empty value.
-Error: Invalid input: 'content' argument must not be empty. Please provide a non-empty value.
-Error: Invalid input: 'content' argument must not be empty. Please provide a non-empty value.
-Error: Invalid input: 'content' argument must not be empty. Please provide a non-empty value.
-Error: 429 Resource has been exhausted (e.g. check quota).
-Error: 429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-
-  No API_KEY or ADC found. Please either:
-    - Set the `GOOGLE_API_KEY` environment variable.
-    - Manually pass the key with `genai.configure(api_key=my_api_key)`.
-    - Or set up Application Default Credentials, see https://ai.google.dev/gemini-api/docs/oauth for more information.
-
-  No API_KEY or ADC found. Please either:
-    - Set the `GOOGLE_API_KEY` environment variable.
-    - Manually pass the key with `genai.configure(api_key=my_api_key)`.
-    - Or set up Application Default Credentials, see https://ai.google.dev/gemini-api/docs/oauth for more information.
-
-  No API_KEY or ADC found. Please either:
-    - Set the `GOOGLE_API_KEY` environment variable.
-    - Manually pass the key with `genai.configure(api_key=my_api_key)`.
-    - Or set up Application Default Credentials, see https://ai.google.dev/gemini-api/docs/oauth for more information.
-
-  No API_KEY or ADC found. Please either:
-    - Set the `GOOGLE_API_KEY` environment variable.
-    - Manually pass the key with `genai.configure(api_key=my_api_key)`.
-    - Or set up Application Default Credentials, see https://ai.google.dev/gemini-api/docs/oauth for more information.
-
-  No API_KEY or ADC found. Please either:
-    - Set the `GOOGLE_API_KEY` environment variable.
-    - Manually pass the key with `genai.configure(api_key=my_api_key)`.
-    - Or set up Application Default Credentials, see https://ai.google.dev/gemini-api/docs/oauth for more information.
-
-  No API_KEY or ADC found. Please either:
-    - Set the `GOOGLE_API_KEY` environment variable.
-    - Manually pass the key with `genai.configure(api_key=my_api_key)`.
-    - Or set up Application Default Credentials, see https://ai.google.dev/gemini-api/docs/oauth for more information.
-
-  No API_KEY or ADC found. Please either:
-    - Set the `GOOGLE_API_KEY` environment variable.
-    - Manually pass the key with `genai.configure(api_key=my_api_key)`.
-    - Or set up Application Default Credentials, see https://ai.google.dev/gemini-api/docs/oauth for more information.
-
-  No API_KEY or ADC found. Please either:
-    - Set the `GOOGLE_API_KEY` environment variable.
-    - Manually pass the key with `genai.configure(api_key=my_api_key)`.
-    - Or set up Application Default Credentials, see https://ai.google.dev/gemini-api/docs/oauth for more information.
-finish_reason: SAFETY
-index: 0
-safety_ratings {
-  category: HARM_CATEGORY_SEXUALLY_EXPLICIT
-  probability: MEDIUM
-}
-safety_ratings {
-  category: HARM_CATEGORY_HATE_SPEECH
-  probability: NEGLIGIBLE
-}
-safety_ratings {
-  category: HARM_CATEGORY_HARASSMENT
-  probability: NEGLIGIBLE
-}
-safety_ratings {
-  category: HARM_CATEGORY_DANGEROUS_CONTENT
-  probability: NEGLIGIBLE
-}
-
-finish_reason: SAFETY
-index: 0
-safety_ratings {
-  category: HARM_CATEGORY_SEXUALLY_EXPLICIT
-  probability: HIGH
-}
-safety_ratings {
-  category: HARM_CATEGORY_HATE_SPEECH
-  probability: NEGLIGIBLE
-}
-safety_ratings {
-  category: HARM_CATEGORY_HARASSMENT
-  probability: NEGLIGIBLE
-}
-safety_ratings {
-  category: HARM_CATEGORY_DANGEROUS_CONTENT
-  probability: NEGLIGIBLE
-}
-
-finish_reason: SAFETY
-index: 0
-safety_ratings {
-  category: HARM_CATEGORY_SEXUALLY_EXPLICIT
-  probability: HIGH
-}
-safety_ratings {
-  category: HARM_CATEGORY_HATE_SPEECH
-  probability: NEGLIGIBLE
-}
-safety_ratings {
-  category: HARM_CATEGORY_HARASSMENT
-  probability: NEGLIGIBLE
-}
-safety_ratings {
-  category: HARM_CATEGORY_DANGEROUS_CONTENT
-  probability: NEGLIGIBLE
-}
-
-
-  No API_KEY or ADC found. Please either:
-    - Set the `GOOGLE_API_KEY` environment variable.
-    - Manually pass the key with `genai.configure(api_key=my_api_key)`.
-    - Or set up Application Default Credentials, see https://ai.google.dev/gemini-api/docs/oauth for more information.
-
-  No API_KEY or ADC found. Please either:
-    - Set the `GOOGLE_API_KEY` environment variable.
-    - Manually pass the key with `genai.configure(api_key=my_api_key)`.
-    - Or set up Application Default Credentials, see https://ai.google.dev/gemini-api/docs/oauth for more information.
-
-  No API_KEY or ADC found. Please either:
-    - Set the `GOOGLE_API_KEY` environment variable.
-    - Manually pass the key with `genai.configure(api_key=my_api_key)`.
-    - Or set up Application Default Credentials, see https://ai.google.dev/gemini-api/docs/oauth for more information.
-
-  No API_KEY or ADC found. Please either:
-    - Set the `GOOGLE_API_KEY` environment variable.
-    - Manually pass the key with `genai.configure(api_key=my_api_key)`.
-    - Or set up Application Default Credentials, see https://ai.google.dev/gemini-api/docs/oauth for more information.
-
-  No API_KEY or ADC found. Please either:
-    - Set the `GOOGLE_API_KEY` environment variable.
-    - Manually pass the key with `genai.configure(api_key=my_api_key)`.
-    - Or set up Application Default Credentials, see https://ai.google.dev/gemini-api/docs/oauth for more information.
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
-429 Resource has been exhausted (e.g. check quota).
+, locale: "en-US"
+message: "API key expired. Please renew the API key."
+]
 429 Resource has been exhausted (e.g. check quota).
