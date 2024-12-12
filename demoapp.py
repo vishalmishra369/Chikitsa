@@ -1,160 +1,61 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session
-import json
-import os
-import bcrypt
-from flask_sqlalchemy import SQLAlchemy
-from dotenv import load_dotenv
-import google.generativeai as genai
+from flask import Flask, request, jsonify, render_template, Response
+from gemini_ai import gemini_chat  # Ensure this exists in your gemini_ai module
+import cv2
+from fer import FER
 
-# Load environment variables
-load_dotenv()
-
-# Initialize Flask app
 app = Flask(__name__)
-app.secret_key = 'secret_key'
 
-# Configure SQLAlchemy
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
-db = SQLAlchemy(app)
+# Initialize emotion detection model
+emotion_detector = FER(mtcnn=True)
 
-# Initialize Gemini AI
-genai.configure(api_key=os.getenv("API_KEY"))
-
-# Define User model
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(100), unique=True, nullable=False)
-    password = db.Column(db.String(100), nullable=False)
-
-    def __init__(self, email, password, name):
-        self.name = name
-        self.email = email
-        self.password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-    
-    def check_password(self, password):
-        return bcrypt.checkpw(password.encode('utf-8'), self.password.encode('utf-8'))
-
-# Create database tables
-with app.app_context():
-    db.create_all()
-
-# Home Route
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-# Registration Route
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
-        password = request.form['password']
-
-        # Check for existing user
-        if User.query.filter_by(email=email).first():
-            return render_template('register.html', error='Email already exists.')
-
-        new_user = User(name=name, email=email, password=password)
-        db.session.add(new_user)
-        db.session.commit()
-        return redirect('/login')
-
-    return render_template('register.html')
-
-# Login Route
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
-
-        user = User.query.filter_by(email=email).first()
-        
-        if user and user.check_password(password):
-            session['email'] = user.email
-            return redirect('/about')
-        else:
-            return render_template('login.html', error='Invalid credentials.')
-
-    return render_template('login.html')
-
-# Dashboard Route
-@app.route('/about')
-def about():
-    return render_template ('about.html')
-
-@app.route('/submit_about', methods=['POST'])
-def submit_about():
-    user_about = request.form['user_about']
-
-    # Save the user's input to a text file
-    with open('prompt.txt', 'w') as f:
-        f.write(user_about)
-
-    return redirect(url_for('chat'))
-from gemini_ai import gemini_chat
-from gemini_ai import model 
-
-@app.route('/logout')
-def logout():
-    session.pop('email', None)
-    return redirect('/login')
-
-
-from gemini_ai import load_prompt
-
-prompt = load_prompt("prompt.txt")
-
-chat_session = model.start_chat()
-
-# Chat function to handle user input
-def gemini_chat(user_input, history_file="dataset/intents.json"):
+# Route for "Talk to Me" functionality
+@app.route('/talk_to_me', methods=['POST'])
+def talk_to_me():
     try:
-        # Load intents from JSON or initialize
-        if os.path.exists(history_file):
-            with open(history_file, 'r') as f:
-                intents_data = json.load(f)
-        else:
-            intents_data = {"intents": []}
-
-        # Send user input to the model
-        response = chat_session.send_message(user_input)
-
-        # Create a new intent object for the conversation
-        new_intent = {
-            "patterns": [user_input],
-            "responses": [response.text.strip()],
-        }
-
-        # Append the new intent to the intents list
-        intents_data['intents'].insert(1, new_intent)
-
-        # Save the updated intents JSON file
-        with open(history_file, 'w') as f:
-            json.dump(intents_data, f, indent=4)
-
-        return response.text
-
+        user_input = request.form['user_input']
+        bot_response = gemini_chat(user_input)  # Fetch response using your function
+        return jsonify({'response': bot_response})
     except Exception as e:
         print(f"Error during chat: {e}")
-        # Optionally log the error to a file
-        with open('error.log', 'a') as log_file:
-            log_file.write(f"{str(e)}\n")
-        return "An error occurred. Please try again."
+        return jsonify({'response': 'An error occurred. Please try again.'})
 
-# Chat Route
-@app.route('/chat', methods=['GET', 'POST'])
-def chat():
-    if request.method == 'GET':
-        return render_template('main.html')
-    elif request.method == 'POST':
-        user_input = request.form['user_input']
-        response = gemini_chat(user_input)  # Call gemini_chat function here
-        return jsonify({'response': response})
-    else:
-        return "Unsupported request method", 405  # Handle other methods if needed
+# Video feed for emotion detection
+def detect_emotion_and_attention(frame):
+    attention_status = "Not Paying Attention"
+    results = emotion_detector.detect_emotions(frame)
 
-if __name__ == "__main__":
+    for result in results:
+        bounding_box = result["box"]
+        emotions_dict = result["emotions"]
+        x, y, w, h = bounding_box
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+        dominant_emotion = max(emotions_dict, key=emotions_dict.get)
+        attention_status = "Paying Attention" if emotions_dict[dominant_emotion] > 0.5 else "Not Paying Attention"
+        cv2.putText(frame, f"{dominant_emotion} ({attention_status})", (x, y - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+    return frame, attention_status
+
+def generate_frames():
+    cap = cv2.VideoCapture(0)
+    while True:
+        success, frame = cap.read()
+        if not success:
+            break
+        frame, _ = detect_emotion_and_attention(frame)
+        _, buffer = cv2.imencode('.jpg', frame)
+        frame = buffer.tobytes()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+    cap.release()
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+# Home route
+@app.route('/')
+def index():
+    return render_template('Mindex.html')
+
+if __name__ == '__main__':
     app.run(debug=True)
