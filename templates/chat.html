@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat Room</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <h1>Chat Room</h1>
+    
+    <div id="video-container">
+        <video id="localVideo" autoplay muted></video>
+        <video id="remoteVideo" autoplay></video>
+    </div>
+
+    <div id="chat-container">
+        <div id="messages"></div>
+        <input type="text" id="message-input">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        const socket = io();
+        const room = '{{ room }}';
+        
+        socket.emit('join', {room: room});
+
+        socket.on('message', function(data) {
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML += `<p><strong>${data.user}:</strong> ${data.message}</p>`;
+        });
+
+        function sendMessage() {
+            const input = document.getElementById('message-input');
+            socket.emit('message', {
+                room: room,
+                message: input.value
+            });
+            input.value = '';
+        }
+
+        // WebRTC implementation
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        let localStream;
+
+        navigator.mediaDevices.getUserMedia({video: true, audio: true})
+            .then(stream => {
+                localStream = stream;
+                localVideo.srcObject = stream;
+            })
+            .catch(err => console.error(err));
+    </script>
+</body>
+</html>

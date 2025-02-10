@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard</title>
+</head>
+<body>
+    <h1>Admin Dashboard</h1>
+    <h2>Users List</h2>
+    <div id="users-list">
+        {% for user in users %}
+            <div>
+                <p>Name: {{ user.name }}</p>
+                <p>Email: {{ user.email }}</p>
+                <p>Role: {{ user.get('role', 'patient') }}</p>
+            </div>
+            <hr>
+        {% endfor %}
+    </div>
+    <a href="/create-doctor">Create New Doctor Account</a>
+</body>
+</html>

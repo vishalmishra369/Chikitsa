@@ -66,7 +66,7 @@ C.H.I.K.I.T.S.A is an advanced AI-powered mental health assistant designed to he
 ### Steps to Set Up the Project:  
 1. **Clone the Repository:**  
    ```bash
-   git clone https://github.com/vinayak1729-web/chikitsa_ai
+   git clone https://github.com/vinayak1729-web/chikitsa_main_ai
    ```  
 
 2. **Install Dependencies:**  
@@ -183,5 +183,5 @@ Contributions are welcome!
 ---
 
 ## License  
-This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 

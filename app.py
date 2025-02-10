@@ -5,33 +5,25 @@ import bcrypt
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 import google.generativeai as genai
-from close_end_questionaire import get_random_close_questions
+from Create_modules.close_end_questionaire import get_random_close_questions
 import csv
-from open_end_questions import get_random_open_questions
+from Create_modules.open_end_questions import get_random_open_questions
 import pandas as pd
-from csv_extracter import csv_to_string
-import google.generativeai as genai
-import os
+from Create_modules.csv_extracter import csv_to_string
 from dotenv import load_dotenv
 import json
-from gemini_ai import gemini_chat
-from image_analysis import analyze_image
+from Create_modules.image_analysis import analyze_image
 from werkzeug.utils import secure_filename
-from trained_chikitsa import chatbot_response
+from Create_modules.trained_chikitsa import chatbot_response
 import cv2
-import numpy as np
+from datetime import datetime
 # Load environment variables
 load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = 'secret_key'
-api_keys = np.array([
-    "AIzaSyC1a2S3E99ZSrB8dI-cjXsNj7bMCGGQM9Q",
-    "AIzaSyBZme8hfqXYYv-l1MLWD1_BtpEXKkNR_zo",
-    "AIzaSyCuDci63aGqPBKRuEX2lKIo8k4GCsvc2E4",
-    "AIzaSyCk-1Jm2uSTq3rPf_9Za4PZKokbPLBz5fI"
-])
+
 # Configure upload folder and allowed extensions
 UPLOAD_FOLDER = 'image_analysis/uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -45,37 +37,50 @@ def allowed_file(filename):
 
 
 # Configure SQLAlchemy
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
-db = SQLAlchemy(app)
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+# db = SQLAlchemy(app)
 
 # Initialize Gemini AI
 genai.configure(api_key=os.getenv("API_KEY"))
 
 # Define User model
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(100), unique=True, nullable=False)
-    password = db.Column(db.String(100), nullable=False)
+# class User(db.Model):
+#     id = db.Column(db.Integer, primary_key=True)
+#     name = db.Column(db.String(100), nullable=False)
+#     email = db.Column(db.String(100), unique=True, nullable=False)
+#     password = db.Column(db.String(100), nullable=False)
 
-    def __init__(self, email, password, name):
-        self.name = name
-        self.email = email
-        self.password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+#     def __init__(self, email, password, name):
+#         self.name = name
+#         self.email = email
+#         self.password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     
-    def check_password(self, password):
-        return bcrypt.checkpw(password.encode('utf-8'), self.password.encode('utf-8'))
+#     def check_password(self, password):
+#         return bcrypt.checkpw(password.encode('utf-8'), self.password.encode('utf-8'))
 
-# Create database tables
-with app.app_context():
-    db.create_all()
+# # Create database tables
+# with app.app_context():
+#     db.create_all()
 
 # Home Route
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# Registration Route
+# Define users.json path
+USERS_FILE = "instance/users.json"
+
+def load_users():
+    with open(USERS_FILE, "r") as f:
+        return json.load(f)
+
+def save_users(users):
+    with open(USERS_FILE, "w") as f:
+        json.dump(users, f, indent=4)
+
+# Remove SQLAlchemy configuration and User model
+# Instead use these routes:
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -83,28 +88,97 @@ def register():
         email = request.form['email']
         password = request.form['password']
 
+        # Create instance directory if it doesn't exist
+        os.makedirs('instance', exist_ok=True)
+
+        # Initialize users.json if it doesn't exist
+        if not os.path.exists(USERS_FILE):
+            with open(USERS_FILE, 'w') as f:
+                json.dump([], f)
+
+        # Load existing users
+        with open(USERS_FILE, 'r') as f:
+            users = json.load(f)
+        
         # Check for existing user
-        if User.query.filter_by(email=email).first():
+        if any(user['email'] == email for user in users):
             return render_template('register.html', error='Email already exists.')
 
-        new_user = User(name=name, email=email, password=password)
-        db.session.add(new_user)
-        db.session.commit()
-        return redirect('/login')
+        # Create new user
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        new_user = {
+            'name': name,
+            'email': email,
+            'password': hashed_password,
+            'created_at': datetime.now().isoformat()
+        }
+        
+        users.append(new_user)
+        
+        # Save updated users
+        with open(USERS_FILE, 'w') as f:
+            json.dump(users, f, indent=4)
+        
+        
+        # After successful registration
+        session['email'] = email  # Set session
+        return redirect('/questionnaire')
 
     return render_template('register.html')
 
-# Login Route
+
+
+@app.route('/questionnaire', methods=['GET', 'POST'])
+def questionnaire():
+    if 'email' not in session:
+        return redirect('/login')
+        
+    if request.method == 'POST':
+        # Get form data
+        age = request.form.get('age')
+        gender = request.form.get('gender')
+        occupation = request.form.get('occupation')
+        
+        # Load user data
+        with open(USERS_FILE, 'r') as f:
+            users = json.load(f)
+            
+        # Find current user
+        user = next((user for user in users if user['email'] == session['email']), None)
+        
+        if user:
+            # Create user_data directory if it doesn't exist
+            os.makedirs('instance/user_data', exist_ok=True)
+            
+            # Save questionnaire data
+            user_data = {
+                'age': age,
+                'gender': gender,
+                'occupation': occupation,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            filename = f"instance/user_data/{user['name']}.json"
+            with open(filename, 'w') as f:
+                json.dump(user_data, f, indent=4)
+                
+            return redirect('/login')
+            
+    return render_template('questionnaire.html')
+
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
 
-        user = User.query.filter_by(email=email).first()
+        users = load_users()
+        user = next((user for user in users if user['email'] == email), None)
         
-        if user and user.check_password(password):
-            session['email'] = user.email
+        if user and bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8')):
+            session['email'] = user['email']
             return redirect('/closed_ended')
         else:
             return render_template('login.html', error='Invalid credentials.')
@@ -162,52 +236,68 @@ def save_responses_to_csv(responses):
     # Save to CSV
     df.to_csv('responses/open_end_questions_responses.csv', mode='w', header=not file_exists, index=False)
 
-
 @app.route('/thank_you')
 def thank_you():
     # Get the email from the session
     email = session.get('email')
 
     if email:
-        # Retrieve user data from the database using the email
-        user = User.query.filter_by(email=email).first()
-        user_name = user.name if user else "User"  # Default to "User" if not found
-    else:
-        user_name = "Guest"  # Default to "Guest" if email is not in the session
-
-    def fetch_gemini_feedback(prompt, keys, current_index=0):
-        if current_index >= len(keys):
-            raise Exception("All API keys have been exhausted.")
+        # Load users from JSON file
+        with open(USERS_FILE, 'r') as f:
+            users = json.load(f)
         
-        try:
-            genai.configure(api_key=keys[current_index])
-            response = gemini_chat(prompt)
-            return response
-        except Exception as e:
-            if 'quota' in str(e).lower() or 'exceeded' in str(e).lower():
-                # Move to the next API key if current one is exhausted
-                return fetch_gemini_feedback(prompt, keys, current_index + 1)
-            else:
-                raise e
+        # Find user by email
+        user = next((user for user in users if user['email'] == email), None)
+        user_name = user['name'] if user else "User"
+    else:
+        user_name = "Guest"
 
     # Generate the Gemini feedback
     close_ended_str = csv_to_string("responses/close_end_questions_responses.csv")
     open_ended_str = csv_to_string("responses/open_end_questions_responses.csv")
     default = "This is my assessment of close-ended questions and open-ended questions. Please provide feedback on me."
     judge_gemini = gemini_chat(default + " " + close_ended_str + " " + open_ended_str)
-    mainprompt="Please summarize the following content in 200 words. Analyze my strengths and weaknesses, identify areas for improvement, and provide actionable suggestions on how to improve. Also, give an honest assessment of my mental health and well-being based on the content provided. Keep in mind that you are my digital psychiatrist, my best friend, and a well-rounded expert in various fields of knowledge. Your feedback should be constructive, empathetic, and based on your understanding of the information provided. Help me grow by offering insights on how I can become a better version of myself, both personally and professionally. at last summarize in only 150 words or less then it add some emogies for representing more connection "
-    summarize = fetch_gemini_feedback(mainprompt + judge_gemini, api_keys)
-    return render_template('thank_you.html', judge_gemini=summarize, user_name=user_name ,completejudege=judge_gemini)
+    
+    mainprompt = "Please summarize the following content in 150 words. Analyze my strengths and weaknesses, identify areas for improvement, and provide actionable suggestions on how to improve. Also, give an honest assessment of my mental health and well-being based on the content provided. Keep in mind that you are my digital psychiatrist, my best friend, and a well-rounded expert in various fields of knowledge. Your feedback should be constructive, empathetic, and based on your understanding of the information provided. Help me grow by offering insights on how I can become a better version of myself, both personally and professionally. at last summarize in only 150 words or less then it add some emogies for representing more connection "
+    
+    summarize = gemini_chat(mainprompt + judge_gemini)
+    
+    return render_template('thank_you.html', judge_gemini=summarize, user_name=user_name, completejudege=judge_gemini)
 
 
 
-from gemini_ai import gemini_chat
-from gemini_ai import model
+
 
 @app.route('/logout')
 def logout():
     session.pop('email', None)
     return redirect('/login')
+
+from Create_modules.csv_extracter import close_ended_response , open_ended_response
+genai.configure(api_key=os.getenv("API_KEY"))
+defaultprompt ="""you have to act as a sexologist , gynologist , neuroloigist also health guide  
+        You are a professional, highly skilled mental doctor, and health guide.
+        You act as a best friend to those who talk to you , but you have to talk based on their mental health , by seeing his age intrests qualities , if you dont know ask him indirectly by asking his/her studing or any work doing currently. 
+        you can use the knowlege of geeta to make the user's mind more powerfull but you dont have to give reference of krishna or arjuna etc if the user is more towards god ( hindu gods ) then u can else wont
+        You can assess if someone is under mental stress by judging their communication. 
+        Your goal is to make them feel happy by cracking jokes and suggesting activities that bring joy. 
+        If anyone asks anything outside your field, guide them or use your knowledge to help. 
+        You can speak in Hindi, Marathi, Hinglish, or any language the user is comfortable with.
+        your name is chikitsa , means Cognitive Health Intelligence Knowledge with Keen Interactive Treatment Support from AI."""
+prompt = "this is my assesment of close ended questions and open ended questions , so you have to talk to me accordingly "
+# Create the model
+generation_config = {
+  "temperature": 2,
+  "top_p": 0.95,
+  "top_k": 64,
+  "max_output_tokens": 8192,
+  "response_mime_type": "text/plain",
+}
+
+model = genai.GenerativeModel(
+  model_name="gemini-1.5-pro",
+  generation_config=generation_config,
+  system_instruction=defaultprompt+ prompt+ " "+ close_ended_response+" " + open_ended_response)
 
 
 chat_session = model.start_chat()

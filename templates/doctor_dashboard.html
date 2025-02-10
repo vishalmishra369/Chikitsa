@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Doctor Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <h1>Doctor Dashboard</h1>
+    <div id="queue-list">
+        <h2>Waiting Patients</h2>
+        {% for patient in queue %}
+            {% if patient.status == 'waiting' %}
+            <div class="patient-card">
+                <p>Patient Name: {{ patient.patient_name }}</p>
+                <p>Email: {{ patient.patient_email }}</p>
+                <p>Waiting since: {{ patient.timestamp }}</p>
+                <button onclick="acceptPatient('{{ patient.patient_email }}')">Accept Patient</button>
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <script>
+        const socket = io();
+        
+        socket.on('queue_update', function(data) {
+            updateQueueDisplay(data.queue);
+        });
+
+        function updateQueueDisplay(queue) {
+            const queueList = document.getElementById('queue-list');
+            let html = '<h2>Waiting Patients</h2>';
+            
+            queue.forEach(patient => {
+                if (patient.status === 'waiting') {
+                    html += `
+                        <div class="patient-card">
+                            <p>Patient Name: ${patient.patient_name}</p>
+                            <p>Email: ${patient.patient_email}</p>
+                            <p>Waiting since: ${patient.timestamp}</p>
+                            <button onclick="acceptPatient('${patient.patient_email}')">Accept Patient</button>
+                        </div>
+                    `;
+                }
+            });
+            
+            queueList.innerHTML = html;
+        }
+
+        function acceptPatient(patientEmail) {
+            socket.emit('accept_patient', {
+                patient_email: patientEmail
+            });
+            window.location.href = `/chat/${patientEmail}-${socket.id}`;
+        }
+    </script>
+</body>
+</html>

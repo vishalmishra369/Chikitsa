@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Waiting Room</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <h1>Waiting Room</h1>
+    <div id="status">
+        <p>Please wait while we connect you with a doctor...</p>
+    </div>
+
+    <script>
+        const socket = io();
+        
+        // Join queue when page loads
+        socket.emit('join_queue');
+        
+        // Listen for acceptance from doctor
+        socket.on('patient_accepted', function(data) {
+            document.getElementById('status').innerHTML = '<p>Doctor is ready to see you!</p>';
+            window.location.href = `/chat/${data.room}`;
+        });
+    </script>
+</body>
+</html>
