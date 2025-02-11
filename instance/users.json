@@ -1,47 +1,26 @@
 [
-    {
-        "name": "asd",
-        "email": "vishal@gmail.com",
-        "password": "$2b$12$NWU1Nv0JvGALgQK8aqzuGuZe523h5.8rZKbBFfkMBBEd.K5aKoLiu",
-        "created_at": "2025-02-10T16:51:27.742804"
-    },
-    {
-        "name": "dfg",
-        "email": "vishal123@gmail.com",
-        "password": "$2b$12$nZeHV4335HMpiv/O3lTXmODDi.yuwj2PoB.o1droAbjo/zBTST6ES",
-        "created_at": "2025-02-10T16:58:10.594672"
-    },
-    {
-        "name": "frg",
-        "email": "vis@gmail.com",
-        "password": "$2b$12$72JgZgQFK//zJP6VXF/zoOg24ZGQaJdWq72JsUN0KN.yAM41rIp7q",
-        "created_at": "2025-02-10T17:37:24.754686"
-    },
-    {
-        "name": "sss",
-        "email": "vish@gmail.com",
-        "password": "$2b$12$gmo..9HGxgmb5F0Kfou1z.3Gh4C.jbT6r2ueDnWx1EaCmrnWJfu9a",
-        "created_at": "2025-02-10T17:38:09.062826"
-    },
-    {
-        "name": "asd",
-        "email": "vishal2@gmail.com",
-        "password": "$2b$12$i6ayTGVxGYZcM.8qkKSXy.qrTf.zPS4ZNx6Snvs0NtkHuAHRLMFFO",
-        "role": "admin",
-        "created_at": "2025-02-10T18:44:05.911873"
-    },
+
     {
         "name": "Vinayak",
         "email": "vinayak@admin.com",
-        "password": "1729",
+        "password": "$2b$12$i6ayTGVxGYZcM.8qkKSXy.qrTf.zPS4ZNx6Snvs0NtkHuAHRLMFFO",
         "role": "admin",
         "created_at": "2023-01-01T00:00:00"
     },
     {
-        "name": "vinayak",
-        "email": "doctorvinayak@12.com",
-        "password": "$2b$12$H5swMnAjyW/iSFKfbbUhUepJV1.NeJWRp3F1PEMWa8AVwe2OTq.7i",
+        "name": "Vishal",
+        "email": "vishal@doctor.com",
+        "password": "$2b$12$T0UgjAyeGydahArxzHCek.AXoBj9ikV7ZVFqUx6eQ5DFC88SBf0wm",
         "role": "doctor",
-        "created_at": "2025-02-10T18:48:27.586502"
+        "created_at": "2025-02-11T15:58:09.893521",
+        "created_by": "vinayak@admin.com"
+    },
+    
+    {
+        "name": "mishra",
+        "email": "vishalmishra@gmail.com",
+        "password": "$2b$12$Cip4RBp.vJlp8hE9bhUVEuyHUw9e3Fd1TlFYbMC36mHh7TMa5WLFu",
+        "role": "user",
+        "created_at": "2025-02-11T18:08:20.547925"
     }
 ]

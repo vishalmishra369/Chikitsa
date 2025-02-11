@@ -1,6 +1,8 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session,Response
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session,Response,flash
 import json
+from flask_socketio import SocketIO, emit, join_room, leave_room
 import os
+from pathlib import Path
 import bcrypt
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
@@ -16,6 +18,7 @@ from Create_modules.image_analysis import analyze_image
 from werkzeug.utils import secure_filename
 from Create_modules.trained_chikitsa import chatbot_response
 import cv2
+import bcrypt
 from datetime import datetime
 # Load environment variables
 load_dotenv()
@@ -43,26 +46,6 @@ def allowed_file(filename):
 # Initialize Gemini AI
 genai.configure(api_key=os.getenv("API_KEY"))
 
-# Define User model
-# class User(db.Model):
-#     id = db.Column(db.Integer, primary_key=True)
-#     name = db.Column(db.String(100), nullable=False)
-#     email = db.Column(db.String(100), unique=True, nullable=False)
-#     password = db.Column(db.String(100), nullable=False)
-
-#     def __init__(self, email, password, name):
-#         self.name = name
-#         self.email = email
-#         self.password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-    
-#     def check_password(self, password):
-#         return bcrypt.checkpw(password.encode('utf-8'), self.password.encode('utf-8'))
-
-# # Create database tables
-# with app.app_context():
-#     db.create_all()
-
-# Home Route
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -78,8 +61,44 @@ def save_users(users):
     with open(USERS_FILE, "w") as f:
         json.dump(users, f, indent=4)
 
-# Remove SQLAlchemy configuration and User model
-# Instead use these routes:
+
+@app.route('/questionnaire', methods=['GET', 'POST'])
+def questionnaire():
+    if 'email' not in session:
+        return redirect('/login')
+        
+    if request.method == 'POST':
+        age = request.form.get('age')
+        gender = request.form.get('gender')
+        occupation_type = request.form.get('occupation_type')
+        occupation_detail = request.form.get('occupation_detail')
+        
+        # Determine final occupation value
+        occupation = occupation_detail if occupation_type == 'Other' else occupation_type
+        
+        with open(USERS_FILE, 'r') as f:
+            users = json.load(f)
+            
+        user = next((user for user in users if user['email'] == session['email']), None)
+        
+        if user:
+            os.makedirs('instance/user_data', exist_ok=True)
+            
+            user_data = {
+                'age': age,
+                'gender': gender,
+                'occupation': occupation,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            filename = f"instance/user_data/{user['name']}.json"
+            with open(filename, 'w') as f:
+                json.dump(user_data, f, indent=4)
+                
+            return redirect('/login')
+            
+    return render_template('questionnaire.html')
+
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -104,12 +123,13 @@ def register():
         if any(user['email'] == email for user in users):
             return render_template('register.html', error='Email already exists.')
 
-        # Create new user
+        # Create new user with default role
         hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         new_user = {
             'name': name,
             'email': email,
             'password': hashed_password,
+            'role': 'user',  # Set default role
             'created_at': datetime.now().isoformat()
         }
         
@@ -119,67 +139,32 @@ def register():
         with open(USERS_FILE, 'w') as f:
             json.dump(users, f, indent=4)
         
-        
         # After successful registration
-        session['email'] = email  # Set session
+        session['email'] = email
+        session['role'] = 'user'  # Set role in session
         return redirect('/questionnaire')
 
     return render_template('register.html')
-
-
-
-@app.route('/questionnaire', methods=['GET', 'POST'])
-def questionnaire():
-    if 'email' not in session:
-        return redirect('/login')
-        
-    if request.method == 'POST':
-        # Get form data
-        age = request.form.get('age')
-        gender = request.form.get('gender')
-        occupation = request.form.get('occupation')
-        
-        # Load user data
-        with open(USERS_FILE, 'r') as f:
-            users = json.load(f)
-            
-        # Find current user
-        user = next((user for user in users if user['email'] == session['email']), None)
-        
-        if user:
-            # Create user_data directory if it doesn't exist
-            os.makedirs('instance/user_data', exist_ok=True)
-            
-            # Save questionnaire data
-            user_data = {
-                'age': age,
-                'gender': gender,
-                'occupation': occupation,
-                'timestamp': datetime.now().isoformat()
-            }
-            
-            filename = f"instance/user_data/{user['name']}.json"
-            with open(filename, 'w') as f:
-                json.dump(user_data, f, indent=4)
-                
-            return redirect('/login')
-            
-    return render_template('questionnaire.html')
-
-
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-
         users = load_users()
         user = next((user for user in users if user['email'] == email), None)
         
         if user and bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8')):
             session['email'] = user['email']
-            return redirect('/closed_ended')
+            session['role'] = user.get('role', 'user')
+
+            # Role-based redirects
+            if session['role'] == 'admin':
+                return redirect('/admin/dashboard')
+            elif session['role'] == 'doctor':
+                return redirect('/doctor/dashboard')
+            else:
+                return redirect('/closed_ended')
         else:
             return render_template('login.html', error='Invalid credentials.')
 
@@ -203,14 +188,53 @@ def submit_close_ended():
         
         return redirect(url_for('submit_opended'))  # Corrected here
 
-def save_to_csv(responses):
-    file_exists = os.path.isfile('responses/close_end_questions_responses.csv')
+def save_current_username():
+    user_email = session.get('email')
+    if not user_email:
+        return None
+    
+    # Load users to get username
+    users = load_users()
+    user = next((user for user in users if user['email'] == user_email), None)
+    if not user:
+        return None
+    
+    username = user['name']
+    
+    # Create directory if it doesn't exist
+    os.makedirs('instance/current_users', exist_ok=True)
+    
+    # Save username to a file
+    filename = f"instance/current_users/{user_email}.txt"
+    with open(filename, 'w') as f:
+        f.write(username)
+    
+    return username
 
-    with open('responses/close_end_questions_responses.csv', mode='w', newline='') as file:  # Changed to 'a'
+def save_to_csv(responses):
+    # Get current user's email from session
+    user_email = session.get('email')
+    if not user_email:
+        return
+    
+    # Load users to get username
+    users = load_users()
+    user = next((user for user in users if user['email'] == user_email), None)
+    if not user:
+        return
+    
+    username = user['name']
+    
+    # Create directory if it doesn't exist
+    os.makedirs('responses/close_ended', exist_ok=True)
+    
+    # Define file path for this user
+    file_path = f'responses/close_ended/{username}.csv'
+    
+    # Write responses to user's CSV file
+    with open(file_path, mode='w', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
-        if not file_exists:
-            writer.writerow(['Question', 'Answer'])  # Write header if the file doesn't exist
-        
+        writer.writerow(['Question', 'Answer'])  # Write header
         for response in responses:
             writer.writerow(response)
 
@@ -224,17 +248,36 @@ def submit_opended():
     else:
         random_questions = get_random_open_questions()  # Call the function from the imported file
         return render_template('open_ended.html', questions=random_questions)
+    
+    
 def save_responses_to_csv(responses):
-    file_exists = os.path.isfile('responses/open_end_questions_responses.csv')
-
+    # Get current user's email from session
+    user_email = session.get('email')
+    if not user_email:
+        return
+    
+    # Load users to get username
+    users = load_users()
+    user = next((user for user in users if user['email'] == user_email), None)
+    if not user:
+        return
+    
+    username = user['name']
+    
+    # Create directory if it doesn't exist
+    os.makedirs('responses/open_ended', exist_ok=True)
+    
+    # Define file path for this user
+    file_path = f'responses/open_ended/{username}.csv'
+    
     # Prepare the data to be saved
     data_to_save = [(question, responses[question]) for question in responses]
-
+    
     # Create a DataFrame from the prepared data
     df = pd.DataFrame(data_to_save, columns=['Question', 'Response'])
     
     # Save to CSV
-    df.to_csv('responses/open_end_questions_responses.csv', mode='w', header=not file_exists, index=False)
+    df.to_csv(file_path, mode='w', index=False)
 
 @app.route('/thank_you')
 def thank_you():
@@ -248,21 +291,28 @@ def thank_you():
         
         # Find user by email
         user = next((user for user in users if user['email'] == email), None)
-        user_name = user['name'] if user else "User"
+        if user:
+            user_name = user['name']
+            # Read from user-specific files
+            close_ended_str = csv_to_string(f"responses/close_ended/{user_name}.csv")
+            open_ended_str = csv_to_string(f"responses/open_ended/{user_name}.csv")
+        else:
+            user_name = "Guest"
+            close_ended_str = ""
+            open_ended_str = ""
     else:
         user_name = "Guest"
+        close_ended_str = ""
+        open_ended_str = ""
 
-    # Generate the Gemini feedback
-    close_ended_str = csv_to_string("responses/close_end_questions_responses.csv")
-    open_ended_str = csv_to_string("responses/open_end_questions_responses.csv")
     default = "This is my assessment of close-ended questions and open-ended questions. Please provide feedback on me."
     judge_gemini = gemini_chat(default + " " + close_ended_str + " " + open_ended_str)
     
-    mainprompt = "Please summarize the following content in 150 words. Analyze my strengths and weaknesses, identify areas for improvement, and provide actionable suggestions on how to improve. Also, give an honest assessment of my mental health and well-being based on the content provided. Keep in mind that you are my digital psychiatrist, my best friend, and a well-rounded expert in various fields of knowledge. Your feedback should be constructive, empathetic, and based on your understanding of the information provided. Help me grow by offering insights on how I can become a better version of myself, both personally and professionally. at last summarize in only 150 words or less then it add some emogies for representing more connection "
-    
+    mainprompt = "Please summarize the following content in 150 words..."  # Your existing prompt
     summarize = gemini_chat(mainprompt + judge_gemini)
     
     return render_template('thank_you.html', judge_gemini=summarize, user_name=user_name, completejudege=judge_gemini)
+
 
 
 
@@ -293,11 +343,14 @@ generation_config = {
   "max_output_tokens": 8192,
   "response_mime_type": "text/plain",
 }
+# username = save_current_username()
+# close_ended_data = close_ended_response(username)
+# open_ended_data = open_ended_response(username)
 
 model = genai.GenerativeModel(
   model_name="gemini-1.5-pro",
   generation_config=generation_config,
-  system_instruction=defaultprompt+ prompt+ " "+ close_ended_response+" " + open_ended_response)
+  system_instruction=defaultprompt+ prompt+ " " )#+close_ended_data+open_ended_data)
 
 
 chat_session = model.start_chat()
@@ -337,8 +390,118 @@ def gemini_chat(user_input, history_file="dataset/intents.json"):
         with open('error.log', 'a') as log_file:
             log_file.write(f"{str(e)}\n")
         return response
-# in excecption the pretained model so if error occurs then it can use the pretrained model 
-# Chat Route
+
+
+
+def get_users_in_queue():
+    users = load_users()
+    queued_users = []
+    
+    for user in users:
+        if user.get('questionnaire_completed') and not user.get('consultation_completed'):
+            queued_users.append(user)
+            
+    return queued_users
+
+@app.route('/admin/dashboard')
+def admin_dashboard():
+    # Check if user is logged in and has admin role
+    if 'email' not in session:
+        flash('Please login first', 'warning')
+        return redirect('/login')
+    
+    if session.get('role') != 'admin':
+        flash('Access restricted. Admin privileges required.', 'error')
+        return redirect('/')
+    
+    # Load and pass users data to template
+    users = load_users()
+    current_admin = session['email']
+    
+    return render_template(
+        'admin_dashboard.html',
+        users=users,
+        current_admin=current_admin,
+        admin_since=get_admin_info(current_admin)
+    )
+
+def get_admin_info(admin_email):
+    users = load_users()
+    for user in users:
+        if user['email'] == admin_email:
+            return user.get('created_at', 'Unknown')
+    return 'Unknown'
+
+@app.route('/admin/create_user', methods=['GET', 'POST'])
+def create_user():
+    if 'email' not in session or session.get('role') != 'admin':
+        return redirect('/login')
+    
+    if request.method == 'POST':
+        name = request.form['name']
+        email = request.form['email']
+        password = request.form['password']
+        role = request.form['role']
+        
+        users = load_users()
+        
+        if any(user['email'] == email for user in users):
+            return render_template('create_user.html', error='Email already exists.')
+        
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        new_user = {
+            'name': name,
+            'email': email,
+            'password': hashed_password,
+            'role': role,
+            'created_at': datetime.now().isoformat(),
+            'created_by': session['email']
+        }
+        
+        users.append(new_user)
+        
+        with open(USERS_FILE, 'w') as f:
+            json.dump(users, f, indent=4)
+            
+        return redirect('/admin/dashboard')
+        
+    return render_template('create_user.html')
+
+
+@app.route('/admin/update_role/<user_email>', methods=['POST'])
+def update_role(user_email):
+    if 'email' not in session or session.get('role') != 'admin':
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    # Get the new role from form data
+    new_role = request.form.get('new_role')
+    
+    if not new_role or new_role not in ['user', 'admin', 'doctor']:
+        return jsonify({'success': False, 'message': 'Invalid role'}), 400
+
+    # Load users from JSON file
+    with open(USERS_FILE, 'r') as f:
+        users = json.load(f)
+    
+    # Update user role
+    user_found = False
+    for user in users:
+        if user['email'] == user_email:
+            user['role'] = new_role
+            user['updated_at'] = datetime.now().isoformat()
+            user['updated_by'] = session['email']
+            user_found = True
+            break
+    
+    if not user_found:
+        return jsonify({'success': False, 'message': 'User not found'}), 404
+    
+    # Save updated users back to JSON file
+    with open(USERS_FILE, 'w') as f:
+        json.dump(users, f, indent=4)
+    
+    return jsonify({'success': True, 'message': 'Role updated successfully'})
+
 @app.route('/chat', methods=['GET', 'POST'])
 def chat():
     if request.method == 'GET':
@@ -519,6 +682,9 @@ def log_conversation(user_input, bot_response, history_file="dataset/intents.jso
 @app.route('/video_feed')
 def video_feed():
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
+
 if __name__ == "__main__":
     app.run(debug=True)
     

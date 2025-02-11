@@ -2,20 +2,122 @@
 <html>
 <head>
     <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
 </head>
 <body>
-    <h1>Admin Dashboard</h1>
-    <h2>Users List</h2>
-    <div id="users-list">
-        {% for user in users %}
-            <div>
-                <p>Name: {{ user.name }}</p>
-                <p>Email: {{ user.email }}</p>
-                <p>Role: {{ user.get('role', 'patient') }}</p>
+    <div class="container">
+        <h1>Admin Dashboard</h1>
+        
+        <div class="dashboard-controls">
+            <a href="{{ url_for('create_user') }}" class="btn">Create New User</a>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search users..." onkeyup="searchUsers()">
             </div>
-            <hr>
-        {% endfor %}
+        </div>
+        
+        <h2>Existing Users</h2>
+        <table id="usersTable">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Created At</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.name }}</td>
+                    <td>{{ user.email }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('update_role', user_email=user.email) }}" class="role-form">
+                            <select name="new_role">
+                                <option value="user" {% if user.role == 'user' %}selected{% endif %}>User</option>
+                                <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+                                <option value="doctor" {% if user.role == 'doctor' %}selected{% endif %}>Doctor</option>
+                            </select>
+                            <button type="submit" class="btn-save">Save</button>
+                        </form>
+                    </td>
+                    <td>{{ user.created_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-    <a href="/create-doctor">Create New Doctor Account</a>
+
+    <script>
+        function searchUsers() {
+            const input = document.getElementById('searchInput');
+            const filter = input.value.toLowerCase();
+            const table = document.getElementById('usersTable');
+            const rows = table.getElementsByTagName('tr');
+
+            for (let i = 1; i < rows.length; i++) {
+                const name = rows[i].getElementsByTagName('td')[0];
+                const email = rows[i].getElementsByTagName('td')[1];
+                if (name || email) {
+                    const nameText = name.textContent || name.innerText;
+                    const emailText = email.textContent || email.innerText;
+                    if (nameText.toLowerCase().indexOf(filter) > -1 || 
+                        emailText.toLowerCase().indexOf(filter) > -1) {
+                        rows[i].style.display = '';
+                    } else {
+                        rows[i].style.display = 'none';
+                    }
+                }
+            }
+        }
+
+        function saveRole(button) {
+            const email = button.getAttribute('data-email');
+            const row = button.closest('tr');
+            const newRole = row.querySelector('select').value;
+            
+            fetch('/admin/update_role/' + email, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    new_role: newRole
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Role updated successfully!');
+                    location.reload();
+                } else {
+                    alert('Failed to update role: ' + data.message);
+                }
+            });
+        }
+    </script>
+
+    <style>
+        .dashboard-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0;
+        }
+
+        .search-box input {
+            padding: 8px 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 300px;
+            font-size: 14px;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 5px rgba(0,123,255,0.3);
+        }
+    </style>
 </body>
 </html>
