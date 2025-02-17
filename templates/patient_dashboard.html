@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Patient Dashboard</title>
+    <style>
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        .slot-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0; }
+        .slot { padding: 10px; border: 1px solid #ddd; cursor: pointer; text-align: center; }
+        .slot:hover { background-color: #f0f0f0; }
+        .slot.booked { background-color: #ffebee; cursor: not-allowed; }
+        .slot.pending { background-color: #fff3e0; }
+        .slot.accepted { background-color: #e8f5e9; }
+        .appointments { margin-top: 20px; }
+        .appointment-card { border: 1px solid #ddd; padding: 10px; margin: 10px 0; }
+        .cancel-form { display: none; margin-top: 10px; }
+        .patient-rating { font-weight: bold; margin-bottom: 10px; }
+        .rating-blue { color: blue; }
+        .rating-white { color: gray; }
+        .rating-red { color: red; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="userStats" class="patient-rating"></div>
+        <h1>Book Appointment</h1>
+        
+        <input type="date" id="dateSelect" min="{{ today }}" onchange="updateSlots()">
+        
+        <div class="slot-grid" id="slotGrid">
+            <!-- Slots will be populated dynamically -->
+        </div>
+
+        <h2>My Appointments</h2>
+        <div id="appointmentsList" class="appointments"></div>
+    </div>
+
+    <script>
+
+        function generateTimeSlots() {
+            const slotGrid = document.getElementById('slotGrid');
+            const slots = [
+                '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+                '14:00', '14:30', '15:00', '15:30', '16:00', '16:30'
+            ];
+            
+            slotGrid.innerHTML = slots.map(time => `
+                <div class="slot" data-time="${time}">${time}</div>
+            `).join('');
+        }
+        
+
+
+        function updateSlots() {
+            const date = document.getElementById('dateSelect').value;
+            fetch('/api/appointments')
+                .then(response => response.json())
+                .then(appointments => {
+                    const slots = document.querySelectorAll('.slot');
+                    slots.forEach(slot => {
+                        slot.className = 'slot';
+                        const isBooked = appointments.some(a => 
+                            a.date === date && 
+                            a.slot === slot.dataset.time
+                        );
+                        if (isBooked) {
+                            slot.classList.add('booked');
+                        }
+                    });
+                });
+        }
+
+
+        function loadUserStats() {
+            fetch('/api/user/stats')
+                .then(response => response.json())
+                .then(stats => {
+                    const statsDiv = document.getElementById('userStats');
+                    statsDiv.innerHTML = `
+                        <div class="rating-${stats.rating}">
+                            Patient Rating: ${stats.rating.toUpperCase()}
+                            (Total Appointments: ${stats.total_appointments}, 
+                            Cancellations: ${stats.total_cancellations})
+                        </div>
+                    `;
+                });
+        }
+        
+
+
+        function bookAppointment(date, slot) {
+            fetch('/api/appointments', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ date, slot })
+            })
+            .then(response => {
+                if (response.ok) {
+                    loadAppointments();
+                    updateSlots();
+                } else {
+                    alert('Booking failed. Maximum 3 appointments per week allowed.');
+                }
+            });
+        }
+
+
+        function cancelAppointment(appointmentId) {
+            const form = document.getElementById(`cancelForm-${appointmentId}`);
+            form.style.display = 'block';
+        }
+    
+        function submitCancellation(appointmentId) {
+            const reason = document.getElementById(`cancelReason-${appointmentId}`).value;
+            if (!reason) {
+                alert('Please provide a reason for cancellation');
+                return;
+            }
+    
+            fetch(`/api/appointments/cancel/${appointmentId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ reason })
+            })
+            .then(response => {
+                if (response.ok) {
+                    loadAppointments();
+                    loadUserStats();
+                }
+            });
+        }
+
+
+        function loadAppointments() {
+            fetch('/api/appointments')
+                .then(response => response.json())
+                .then(appointments => {
+                    const list = document.getElementById('appointmentsList');
+                    list.innerHTML = appointments.map(appointment => `
+                        <div class="appointment-card status-${appointment.status}">
+                            <div>Date: ${appointment.date}</div>
+                            <div>Time: ${appointment.slot}</div>
+                            <div>Status: ${appointment.status}</div>
+                            ${appointment.cancellation_reason ? 
+                                `<div>Cancellation Reason: ${appointment.cancellation_reason}</div>` : ''}
+                            ${appointment.status === 'pending' ? `
+                                <button onclick="cancelAppointment(${appointment.id})">Cancel</button>
+                                <div id="cancelForm-${appointment.id}" class="cancel-form">
+                                    <textarea id="cancelReason-${appointment.id}" 
+                                        placeholder="Please provide reason for cancellation"></textarea>
+                                    <button onclick="submitCancellation(${appointment.id})">Submit</button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('');
+                });
+        }
+
+        document.getElementById('slotGrid').addEventListener('click', (e) => {
+            if (e.target.classList.contains('slot') && !e.target.classList.contains('booked')) {
+                const date = document.getElementById('dateSelect').value;
+                if (!date) {
+                    alert('Please select a date first');
+                    return;
+                }
+                bookAppointment(date, e.target.dataset.time);
+            }
+        });
+
+        // Set min date to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('dateSelect').min = today;
+        
+
+        generateTimeSlots();
+        // Initial load
+        loadUserStats();
+        loadAppointments();
+    </script>
+</body>
+</html>

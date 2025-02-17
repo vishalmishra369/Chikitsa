@@ -1,0 +1,25 @@
+{
+    "total_appointments": 6,
+    "total_cancellations": 3,
+    "yearly_stats": {
+        "2025": {
+            "booked": 6,
+            "cancelled": 3
+        }
+    },
+    "monthly_stats": {
+        "2": {
+            "booked": 4,
+            "cancelled": 2
+        },
+        "4": {
+            "booked": 1,
+            "cancelled": 1
+        },
+        "3": {
+            "booked": 1,
+            "cancelled": 0
+        }
+    },
+    "rating": "red"
+}

@@ -1,58 +1,105 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
     <title>Doctor Dashboard</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h1 { margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        .action-buttons button, .action-buttons a { padding: 6px 12px; margin-right: 5px; border: none; cursor: pointer; text-decoration: none; color: white; border-radius: 3px; display: inline-block;}
-        .accept-button { background-color: #4CAF50; }
-        .reject-button { background-color: #f44336; }
-        .reschedule-button { background-color: #008CBA; }
-        .action-buttons button:hover, .action-buttons a:hover { opacity: 0.8; }
-
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        .appointment-card { 
+            border: 1px solid #ddd; 
+            padding: 15px; 
+            margin: 10px 0; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .patient-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .rating-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .rating-blue { background-color: blue; }
+        .rating-white { background-color: gray; }
+        .rating-red { background-color: red; }
+        .status-pending { background-color: #fff3e0; }
+        .status-accepted { background-color: #e8f5e9; }
+        .status-rejected { background-color: #ffebee; }
+        .actions button { margin-left: 10px; }
+        .cancellation-reason { 
+            color: #d32f2f;
+            margin-top: 5px;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
-    <h1>Doctor Dashboard</h1>
+    <div class="container">
+        <h1>Doctor Dashboard</h1>
+        <div id="appointmentsList"></div>
+    </div>
 
-    <h2>Pending Appointment Requests</h2>
+    <script>
+        function updateAppointmentStatus(appointmentId, status) {
+            fetch(`/api/appointments/${appointmentId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ status })
+            })
+            .then(response => {
+                if (response.ok) {
+                    loadAppointments();
+                }
+            });
+        }
 
-    {% if pending_appointments %}
-    <table>
-        <thead>
-            <tr>
-                <th>Appointment ID</th>
-                <th>User Email</th>
-                <th>Requested Time</th>
-                <th>Request Time</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for appointment in pending_appointments %}
-            <tr>
-                <td>{{ appointment.appointment_id }}</td>
-                <td>{{ appointment.user_email }}</td>
-                <td>{{ appointment.appointment_datetime }}</td>
-                <td>{{ appointment.request_time }}</td>
-                <td class="action-buttons">
-                    <a href="/doctor/appointment/accept/{{ appointment.appointment_id }}" class="accept-button">Accept</a>
-                    <a href="/doctor/appointment/reject/{{ appointment.appointment_id }}" class="reject-button">Reject</a>
-                    <a href="/doctor/appointment/reschedule/{{ appointment.appointment_id }}" class="reschedule-button">Reschedule</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-        <p>No pending appointment requests.</p>
-    {% endif %}
+        function loadAppointments() {
+            fetch('/api/doctor/appointments')
+                .then(response => response.json())
+                .then(appointments => {
+                    const list = document.getElementById('appointmentsList');
+                    list.innerHTML = appointments.map(appointment => `
+                        <div class="appointment-card status-${appointment.status}">
+                            <div class="details">
+                                <div class="patient-info">
+                                    <div class="rating-indicator rating-${appointment.patient_rating}"></div>
+                                    <div>Patient: ${appointment.patient}</div>
+                                </div>
+                                <div>Date: ${appointment.date}</div>
+                                <div>Time: ${appointment.slot}</div>
+                                <div>Status: ${appointment.status}</div>
+                                ${appointment.cancellation_reason ? 
+                                    `<div class="cancellation-reason">
+                                        Cancellation Reason: ${appointment.cancellation_reason}
+                                    </div>` : ''
+                                }
+                            </div>
+                            <div class="actions">
+                                ${appointment.status === 'pending' ? `
+                                    <button onclick="updateAppointmentStatus(${appointment.id}, 'accepted')">
+                                        Accept
+                                    </button>
+                                    <button onclick="updateAppointmentStatus(${appointment.id}, 'rejected')">
+                                        Reject
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `).join('');
+                });
+        }
+        
 
-    <p><a href="/logout">Logout</a></p>
+        // Initial load
+        loadAppointments();
+        
+        // Refresh every 30 seconds
+        setInterval(loadAppointments, 30000);
+    </script>
 </body>
 </html>

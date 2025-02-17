@@ -19,12 +19,10 @@ from werkzeug.utils import secure_filename
 from Create_modules.trained_chikitsa import chatbot_response
 import cv2
 import bcrypt
+from datetime import timedelta
 from datetime import datetime
 from functools import wraps
-# Load environment variables
 load_dotenv()
-
-# Initialize Flask app
 app = Flask(__name__)
 app.secret_key = 'secret_key'
 
@@ -131,8 +129,7 @@ def register():
         session['username'] = name
         session['email'] = email
         session['role'] = 'user'
-        return redirect('/appointment') # Redirect to appointment page after registration
-
+        return redirect('/home') 
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -157,7 +154,7 @@ def login():
             elif session['role'] == 'doctor':
                 return redirect('/doctor/dashboard')
             else:
-                return redirect('/home') # Redirect user to appointment page after login
+                return redirect('/home') 
 
         return render_template('login.html', error='Invalid credentials')
 
@@ -435,25 +432,75 @@ def thank_you():
         close_ended_str = ""
         open_ended_str = ""
 
-    default = "This is my assessment of close-ended questions and open-ended questions. Please provide feedback on me."
+    default = "This is my assessment of close-ended questions and open-ended questions. Please provide feedback on me in  friendly tone  in sumary like a professional psychiatrist , in english or hinglish or Minglish ."
     judge_gemini = gemini_chat(default + " " + close_ended_str + " " + open_ended_str)
     
-    mainprompt = "Please summarize the following content in 150 words..."  # Your existing prompt
-    summarize = gemini_chat(mainprompt + judge_gemini)
+    return render_template('thank_you.html', judge_gemini=judge_gemini, user_name=user_name, completejudege=judge_gemini)
+
+@app.route('/feedback')
+def feedback():
+    # Check if user is logged in
+    if 'username' not in session:
+        return redirect(url_for('login'))
     
-    return render_template('thank_you.html', judge_gemini=summarize, user_name=user_name, completejudege=judge_gemini)
-
-
-
-
-
+    username = session.get('username')
+    user_file = f'instance/user_data/{username}.json'
+    
+    try:
+        # Load existing user data
+        with open(user_file, 'r') as f:
+            user_data = json.load(f)
+            
+        # Check if wellness report exists
+        if 'wellness_report' in user_data:
+            judge_gemini = user_data['wellness_report']
+        else:
+            # Generate new report
+            close_ended_str = csv_to_string(f"responses/close_ended/{username}.csv")
+            open_ended_str = csv_to_string(f"responses/open_ended/{username}.csv")
+            
+            default = "This is my assessment of close-ended questions and open-ended questions. Please provide feedback on me in friendly tone in summary like a professional psychiatrist. in english "
+            judge_gemini = gemini_chat(default + " " + close_ended_str + " " + open_ended_str)
+            
+            # Update user data with wellness report
+            user_data['wellness_report'] = judge_gemini
+            
+            # Save updated user data
+            with open(user_file, 'w') as f:
+                json.dump(user_data, f, indent=4)
+    
+    except FileNotFoundError:
+        # Initialize new user data with wellness report
+        close_ended_str = csv_to_string(f"responses/close_ended/{username}.csv")
+        open_ended_str = csv_to_string(f"responses/open_ended/{username}.csv")
+        
+        default = "This is my assessment of close-ended questions and open-ended questions. Please provide feedback on me in friendly tone in summary like a professional psychiatrist."
+        judge_gemini = gemini_chat(default + " " + close_ended_str + " " + open_ended_str)
+        
+        user_data = {
+            "age": "",  # You can add these from session or form data
+            "gender": "",
+            "occupation": "",
+            "timestamp": datetime.now().isoformat(),
+            "wellness_report": judge_gemini
+        }
+        
+        # Save new user data
+        os.makedirs('instance/user_data', exist_ok=True)
+        with open(user_file, 'w') as f:
+            json.dump(user_data, f, indent=4)
+    
+    return render_template('thank_you.html', 
+                         judge_gemini=judge_gemini, 
+                         user_name=username, 
+                         completejudege=judge_gemini)
 
 @app.route('/logout')
 def logout():
     session.pop('email', None)
     return redirect('/login')
 
-from Create_modules.csv_extracter import close_ended_response , open_ended_response
+
 genai.configure(api_key=os.getenv("API_KEY"))
 defaultprompt ="""you have to act as a sexologist , gynologist , neuroloigist also health guide  
         You are a professional, highly skilled mental doctor, and health guide.
@@ -467,18 +514,15 @@ defaultprompt ="""you have to act as a sexologist , gynologist , neuroloigist al
 prompt = "this is my assesment of close ended questions and open ended questions , so you have to talk to me accordingly "
 # Create the model
 generation_config = {
-  "temperature": 2,
+  "temperature": 0.7,
   "top_p": 0.95,
   "top_k": 64,
-  "max_output_tokens": 8192,
+  "max_output_tokens": 65536,
   "response_mime_type": "text/plain",
 }
-# username = save_current_username()
-# close_ended_data = close_ended_response(username)
-# open_ended_data = open_ended_response(username)
 
 model = genai.GenerativeModel(
-  model_name="gemini-1.5-pro",
+  model_name="gemini-2.0-flash-thinking-exp-01-21",
   generation_config=generation_config,
   system_instruction=defaultprompt+ prompt+ " " )#+close_ended_data+open_ended_data)
 
@@ -813,6 +857,264 @@ def log_conversation(user_input, bot_response, history_file="dataset/intents.jso
 def video_feed():
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
+
+
+
+# Add these routes after existing routes
+@app.route('/appointment')
+@login_required
+def appointment():
+    if session.get('role') == 'doctor':
+        return redirect(url_for('doctor_dashboard'))
+    return render_template('patient_dashboard.html')
+
+@app.route('/doctor/dashboard')
+@login_required
+def doctor_dashboard():
+    if session.get('role') != 'doctor':
+        return redirect(url_for('appointment'))
+    return render_template('doctor_dashboard.html')
+
+@app.route('/api/appointments', methods=['GET', 'POST'])
+@login_required
+def handle_appointments():
+    username = session.get('username')
+    appointments_file = f'instance/appointments/{username}.json'
+    os.makedirs('instance/appointments', exist_ok=True)
+    
+    if request.method == 'GET':
+        try:
+            with open(appointments_file, 'r') as f:
+                appointments = json.load(f)
+            return jsonify(appointments)
+        except FileNotFoundError:
+            return jsonify([])
+    
+    elif request.method == 'POST':
+        data = request.json
+        appointment_date = datetime.strptime(data['date'], '%Y-%m-%d')
+        
+        # Check if it's weekend
+        if appointment_date.weekday() >= 5:  # 5=Saturday, 6=Sunday
+            return jsonify({'error': 'No appointments on weekends'}), 400
+            
+        try:
+            with open(appointments_file, 'r') as f:
+                appointments = json.load(f)
+        except FileNotFoundError:
+            appointments = []
+
+        # Check weekly limit (1 per week)
+        week_start = appointment_date - timedelta(days=appointment_date.weekday())
+        week_end = week_start + timedelta(days=6)
+        week_appointments = [a for a in appointments 
+                           if week_start <= datetime.strptime(a['date'], '%Y-%m-%d') <= week_end
+                           and a['status'] != 'cancelled']
+        
+        if len(week_appointments) >= 1:
+            return jsonify({'error': 'Maximum 1 appointment per week allowed'}), 400
+
+        # Check monthly limit (4 per month)
+        month_start = appointment_date.replace(day=1)
+        month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+        month_appointments = [a for a in appointments 
+                            if month_start <= datetime.strptime(a['date'], '%Y-%m-%d') <= month_end
+                            and a['status'] != 'cancelled']
+        
+        if len(month_appointments) >= 4:
+            return jsonify({'error': 'Maximum 4 appointments per month allowed'}), 400
+
+        new_appointment = {
+            'id': len(appointments) + 1,
+            'patient': username,
+            'date': data['date'],
+            'slot': data['slot'],
+            'status': 'pending',
+            'created_at': datetime.now().isoformat(),
+            'cancellation_reason': None
+        }
+        
+        appointments.append(new_appointment)
+        
+        # Update appointment stats
+        update_appointment_stats(username, 'booked', appointment_date)
+        
+        with open(appointments_file, 'w') as f:
+            json.dump(appointments, f, indent=4)
+            
+        return jsonify(new_appointment)
+    
+    
+def update_appointment_stats(username, action, date):
+    stats_file = f'instance/appointment_stats/{username}.json'
+    os.makedirs('instance/appointment_stats', exist_ok=True)
+    
+    try:
+        with open(stats_file, 'r') as f:
+            stats = json.load(f)
+    except FileNotFoundError:
+        stats = {
+            'total_appointments': 0,
+            'total_cancellations': 0,
+            'yearly_stats': {},
+            'monthly_stats': {},
+            'rating': 'white'  # default rating
+        }
+    
+    year = str(date.year)
+    month = str(date.month)
+    
+    if year not in stats['yearly_stats']:
+        stats['yearly_stats'][year] = {'booked': 0, 'cancelled': 0}
+    if month not in stats['monthly_stats']:
+        stats['monthly_stats'][month] = {'booked': 0, 'cancelled': 0}
+        
+    if action == 'booked':
+        stats['total_appointments'] += 1
+        stats['yearly_stats'][year]['booked'] += 1
+        stats['monthly_stats'][month]['booked'] += 1
+    elif action == 'cancelled':
+        stats['total_cancellations'] += 1
+        stats['yearly_stats'][year]['cancelled'] += 1
+        stats['monthly_stats'][month]['cancelled'] += 1
+        
+    # Update rating based on cancellation rate
+    monthly_cancel_rate = stats['monthly_stats'][month]['cancelled'] / max(stats['monthly_stats'][month]['booked'], 1)
+    
+    if monthly_cancel_rate < 0.1:
+        stats['rating'] = 'blue'    # genuine patient
+    elif monthly_cancel_rate > 0.4:
+        stats['rating'] = 'red'     # frequent canceller
+    else:
+        stats['rating'] = 'white'   # normal patient
+        
+    with open(stats_file, 'w') as f:
+        json.dump(stats, f, indent=4)
+
+
+
+@app.route('/api/appointments/<int:appointment_id>', methods=['PUT'])
+@login_required
+def update_appointment(appointment_id):
+    if session.get('role') != 'doctor':
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    appointments_file = 'instance/appointments.json'
+    
+    with open(appointments_file, 'r') as f:
+        appointments = json.load(f)
+    
+    for appointment in appointments:
+        if appointment['id'] == appointment_id:
+            appointment['status'] = request.json['status']
+            break
+    
+    with open(appointments_file, 'w') as f:
+        json.dump(appointments, f, indent=4)
+        
+    return jsonify({'success': True})
+
+
+
+# Add these helper functions
+def get_user_appointment_stats(username):
+    stats_file = f'instance/appointment_stats/{username}.json'
+    os.makedirs('instance/appointment_stats', exist_ok=True)
+    
+    try:
+        with open(stats_file, 'r') as f:
+            stats = json.load(f)
+    except FileNotFoundError:
+        stats = {
+            'total_appointments': 0,
+            'total_cancellations': 0,
+            'yearly_stats': {},
+            'monthly_stats': {},
+            'rating': 'white'  # default rating
+        }
+    
+    return stats
+
+def update_user_rating(username):
+    stats = get_user_appointment_stats(username)
+    monthly_cancel_rate = stats['total_cancellations'] / max(stats['total_appointments'], 1)
+    
+    if monthly_cancel_rate < 0.1:
+        rating = 'blue'  # genuine patient
+    elif monthly_cancel_rate > 0.4:
+        rating = 'red'   # frequent canceller
+    else:
+        rating = 'white' # normal patient
+        
+    stats['rating'] = rating
+    
+    with open(f'instance/appointment_stats/{username}.json', 'w') as f:
+        json.dump(stats, f, indent=4)
+    
+    return rating
+
+
+@app.route('/api/appointments/cancel/<int:appointment_id>', methods=['POST'])
+@login_required
+def cancel_appointment(appointment_id):
+    username = session.get('username')
+    appointments_file = f'instance/appointments/{username}.json'
+    
+    with open(appointments_file, 'r') as f:
+        appointments = json.load(f)
+    
+    appointment = next((a for a in appointments if a['id'] == appointment_id), None)
+    if appointment:
+        appointment['status'] = 'cancelled'
+        appointment['cancellation_reason'] = request.json.get('reason')
+        
+        # Update cancellation stats
+        appointment_date = datetime.strptime(appointment['date'], '%Y-%m-%d')
+        update_appointment_stats(username, 'cancelled', appointment_date)
+        
+        with open(appointments_file, 'w') as f:
+            json.dump(appointments, f, indent=4)
+            
+        return jsonify({'success': True})
+    
+    return jsonify({'error': 'Appointment not found'}), 404
+
+
+@app.route('/api/doctor/appointments', methods=['GET'])
+@login_required
+def get_all_appointments():
+    if session.get('role') != 'doctor':
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    all_appointments = []
+    appointments_dir = 'instance/appointments'
+    
+    for filename in os.listdir(appointments_dir):
+        if filename.endswith('.json'):
+            username = filename[:-5]
+            with open(os.path.join(appointments_dir, filename), 'r') as f:
+                user_appointments = json.load(f)
+                
+            # Get user's rating
+            stats_file = f'instance/appointment_stats/{username}.json'
+            with open(stats_file, 'r') as f:
+                stats = json.load(f)
+                
+            for appointment in user_appointments:
+                appointment['patient_rating'] = stats['rating']
+                all_appointments.append(appointment)
+    
+    # Sort by rating priority (blue > white > red)
+    rating_priority = {'blue': 0, 'white': 1, 'red': 2}
+    all_appointments.sort(key=lambda x: (rating_priority[x['patient_rating']], x['created_at']))
+    
+    return jsonify(all_appointments)
+
+@app.route('/api/user/stats', methods=['GET'])
+@login_required
+def get_user_stats():
+    username = session.get('username')
+    return jsonify(get_user_appointment_stats(username))
 
 
 if __name__ == "__main__":

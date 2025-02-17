@@ -1,0 +1,26 @@
+[
+    {
+        "id": 1,
+        "patient": "Vinayak",
+        "date": "2025-02-19",
+        "slot": "12:00-13:00",
+        "status": "accepted",
+        "created_at": "2025-02-17T14:52:34.719328"
+    },
+    {
+        "id": 2,
+        "patient": "Vinayak",
+        "date": "2025-02-18",
+        "slot": "10:00-11:00",
+        "status": "rejected",
+        "created_at": "2025-02-17T14:52:40.637986"
+    },
+    {
+        "id": 3,
+        "patient": "Vinayak",
+        "date": "2025-02-18",
+        "slot": "15:00-16:00",
+        "status": "rejected",
+        "created_at": "2025-02-17T14:52:42.900345"
+    }
+]

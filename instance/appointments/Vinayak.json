@@ -1,0 +1,47 @@
+[
+    {
+        "id": 1,
+        "patient": "Vinayak",
+        "date": "2025-02-18",
+        "slot": "10:00-11:00",
+        "status": "cancelled",
+        "created_at": "2025-02-17T18:13:45.495177",
+        "cancellation_reason": "not available sorry"
+    },
+    {
+        "id": 2,
+        "patient": "Vinayak",
+        "date": "2025-04-17",
+        "slot": "10:00-11:00",
+        "status": "cancelled",
+        "created_at": "2025-02-17T18:14:08.987107",
+        "cancellation_reason": "sorry bhai"
+    },
+    {
+        "id": 3,
+        "patient": "Vinayak",
+        "date": "2025-03-20",
+        "slot": "14:00",
+        "status": "pending",
+        "created_at": "2025-02-17T18:50:51.715386",
+        "cancellation_reason": null
+    },
+    {
+        "id": 4,
+        "patient": "Vinayak",
+        "date": "2025-02-20",
+        "slot": "09:30",
+        "status": "cancelled",
+        "created_at": "2025-02-17T18:54:09.203253",
+        "cancellation_reason": "ok bye"
+    },
+    {
+        "id": 5,
+        "patient": "Vinayak",
+        "date": "2025-02-28",
+        "slot": "14:00",
+        "status": "pending",
+        "created_at": "2025-02-17T18:54:58.259628",
+        "cancellation_reason": null
+    }
+]

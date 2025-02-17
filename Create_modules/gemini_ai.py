@@ -18,20 +18,17 @@ defaultprompt ="""you have to act as a sexologist , gynologist , neuroloigist al
 prompt = "this is my assesment of close ended questions and open ended questions , so you have to talk to me accordingly "
 # Create the model
 generation_config = {
-  "temperature": 2,
+  "temperature": 0.7,
   "top_p": 0.95,
   "top_k": 64,
-  "max_output_tokens": 8192,
+  "max_output_tokens": 65536,
   "response_mime_type": "text/plain",
 }
 
 model = genai.GenerativeModel(
-  model_name="gemini-1.5-pro",
+  model_name="gemini-2.0-flash-thinking-exp-01-21",
   generation_config=generation_config,
-  # safety_settings = Adjust safety settings
-  # See https://ai.google.dev/gemini-api/docs/safety-settings
-  system_instruction=defaultprompt+ prompt+ " "+ close_ended_response+" " + open_ended_response)
-
+)
 def gemini_chat(user_input, history_file="dataset/intents.json"):
     try:
         # Load the intents JSON or create an empty structure if not found
