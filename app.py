@@ -20,6 +20,7 @@ from Create_modules.trained_chikitsa import chatbot_response
 import cv2
 import bcrypt
 from datetime import datetime
+from functools import wraps
 # Load environment variables
 load_dotenv()
 
@@ -37,11 +38,6 @@ def allowed_file(filename):
     Checks if the file has an allowed extension.
     """
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
-# Configure SQLAlchemy
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
-# db = SQLAlchemy(app)
 
 # Initialize Gemini AI
 genai.configure(api_key=os.getenv("API_KEY"))
@@ -107,69 +103,184 @@ def register():
         email = request.form['email']
         password = request.form['password']
 
-        # Create instance directory if it doesn't exist
         os.makedirs('instance', exist_ok=True)
 
-        # Initialize users.json if it doesn't exist
         if not os.path.exists(USERS_FILE):
             with open(USERS_FILE, 'w') as f:
                 json.dump([], f)
 
-        # Load existing users
         with open(USERS_FILE, 'r') as f:
             users = json.load(f)
-        
-        # Check for existing user
-        if any(user['email'] == email for user in users):
-            return render_template('register.html', error='Email already exists.')
 
-        # Create new user with default role
+        # Check for existing user (both email and username)
+        if any(user['email'] == email or user['name'] == name for user in users):
+            return render_template('register.html', error='Email or username already exists.')
+
         hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         new_user = {
             'name': name,
             'email': email,
             'password': hashed_password,
-            'role': 'user',  # Set default role
+            'role': 'user',
             'created_at': datetime.now().isoformat()
         }
-        
+
         users.append(new_user)
-        
-        # Save updated users
-        with open(USERS_FILE, 'w') as f:
-            json.dump(users, f, indent=4)
-        
-        # After successful registration
+        save_users(users)
+
+        session['username'] = name
         session['email'] = email
-        session['role'] = 'user'  # Set role in session
-        return redirect('/questionnaire')
+        session['role'] = 'user'
+        return redirect('/appointment') # Redirect to appointment page after registration
 
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
+        identifier = request.form.get('identifier')  # Using get() method for safe access
+        password = request.form.get('password')
+
+        if not identifier or not password:
+            return render_template('login.html', error='Please provide all credentials')
+
         users = load_users()
-        user = next((user for user in users if user['email'] == email), None)
-        
+        user = next((user for user in users if user['email'] == identifier or user['name'] == identifier), None)
+
         if user and bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8')):
+            session['username'] = user['name']
             session['email'] = user['email']
             session['role'] = user.get('role', 'user')
 
-            # Role-based redirects
             if session['role'] == 'admin':
                 return redirect('/admin/dashboard')
             elif session['role'] == 'doctor':
                 return redirect('/doctor/dashboard')
             else:
-                return redirect('/closed_ended')
-        else:
-            return render_template('login.html', error='Invalid credentials.')
+                return redirect('/home') # Redirect user to appointment page after login
+
+        return render_template('login.html', error='Invalid credentials')
 
     return render_template('login.html')
 
+
+@app.route('/session-info')
+def session_info():
+    session_data = dict(session)
+    return jsonify(session_data)
+
+# Login required decorator
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'username' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/home')
+def home():
+    return render_template('home.html')
+
+@app.route('/meditation')
+@login_required
+def meditation():
+    return render_template('meditation.html')
+
+@app.route('/log_meditation', methods=['POST'])
+@login_required
+def log_meditation():
+    username = session.get('username')
+    
+    meditation_data = {
+        'timestamp': datetime.now().isoformat(),
+        'duration': request.json.get('duration', 300),  # Default 5 minutes
+        'completed': request.json.get('completed', True)
+    }
+    
+    # Store meditation session data
+    meditation_file = f'instance/meditation_data/{username}_meditation.json'
+    os.makedirs('instance/meditation_data', exist_ok=True)
+    
+    try:
+        with open(meditation_file, 'r') as f:
+            meditation_history = json.load(f)
+    except FileNotFoundError:
+        meditation_history = []
+    
+    meditation_history.append(meditation_data)
+    
+    with open(meditation_file, 'w') as f:
+        json.dump(meditation_history, f, indent=4)
+    
+    return jsonify({
+        'status': 'success',
+        'message': 'Meditation session logged successfully',
+        'total_sessions': len(meditation_history)
+    })
+
+@app.route('/get_meditation_stats')
+@login_required
+def get_meditation_stats():
+    username = session.get('username')
+    meditation_file = f'instance/meditation_data/{username}_meditation.json'
+    
+    try:
+        with open(meditation_file, 'r') as f:
+            meditation_history = json.load(f)
+            
+        total_minutes = sum(session['duration'] for session in meditation_history)
+        total_sessions = len(meditation_history)
+        
+        return jsonify({
+            'total_minutes': total_minutes,
+            'total_sessions': total_sessions,
+            'recent_sessions': meditation_history[-5:]  # Last 5 sessions
+        })
+    except FileNotFoundError:
+        return jsonify({
+            'total_minutes': 0,
+            'total_sessions': 0,
+            'recent_sessions': []
+        })
+
+@app.route('/personal_info')
+@login_required
+def personal_info():
+    username = session.get('username')
+    user_data_path = f'instance/user_data/{username}.json'
+    
+    if os.path.exists(user_data_path):
+        with open(user_data_path, 'r') as f:
+            user_data = json.load(f)
+    else:
+        user_data = {
+            "age": "",
+            "gender": "",
+            "occupation": "",
+            "timestamp": datetime.now().isoformat()
+        }
+    
+    return render_template('personal_info.html', user_data=user_data)
+
+@app.route('/update_personal_info', methods=['POST'])
+@login_required
+def update_personal_info():
+    username = session.get('username')
+    user_data_path = f'instance/user_data/{username}.json'
+    
+    updated_data = {
+        "age": request.form.get('age'),
+        "gender": request.form.get('gender'),
+        "occupation": request.form.get('occupation'),
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    os.makedirs('instance/user_data', exist_ok=True)
+    with open(user_data_path, 'w') as f:
+        json.dump(updated_data, f, indent=4)
+    
+    return redirect(url_for('personal_info'))
 @app.route('/closed_ended')
 def close_ended():
     random_questions = get_random_close_questions()  # Get random 5 questions
@@ -187,30 +298,49 @@ def submit_close_ended():
         save_to_csv(responses)
         
         return redirect(url_for('submit_opended'))  # Corrected here
+@app.route('/mood_tracker')
+@login_required
+def mood_tracker():
+    return render_template('mood_tracker.html')
 
-def save_current_username():
-    user_email = session.get('email')
-    if not user_email:
-        return None
+@app.route('/log_mood', methods=['POST'])
+@login_required
+def log_mood():
+    data = request.json
+    username = session.get('username')
+    mood_file = f'instance/mood_data/{username}_moods.json'
     
-    # Load users to get username
-    users = load_users()
-    user = next((user for user in users if user['email'] == user_email), None)
-    if not user:
-        return None
+    os.makedirs('instance/mood_data', exist_ok=True)
     
-    username = user['name']
+    try:
+        with open(mood_file, 'r') as f:
+            moods = json.load(f)
+    except FileNotFoundError:
+        moods = []
     
-    # Create directory if it doesn't exist
-    os.makedirs('instance/current_users', exist_ok=True)
+    moods.append({
+        'mood': data['mood'],
+        'timestamp': data['timestamp']
+    })
     
-    # Save username to a file
-    filename = f"instance/current_users/{user_email}.txt"
-    with open(filename, 'w') as f:
-        f.write(username)
+    with open(mood_file, 'w') as f:
+        json.dump(moods, f)
     
-    return username
+    return jsonify({'status': 'success'})
 
+@app.route('/get_moods')
+@login_required
+def get_moods():
+    username = session.get('username')
+    mood_file = f'instance/mood_data/{username}_moods.json'
+    
+    try:
+        with open(mood_file, 'r') as f:
+            moods = json.load(f)
+    except FileNotFoundError:
+        moods = []
+    
+    return jsonify({'moods': moods})
 def save_to_csv(responses):
     # Get current user's email from session
     user_email = session.get('email')

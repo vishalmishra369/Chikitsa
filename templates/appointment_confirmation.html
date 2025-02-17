@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Appointment Request Confirmation</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .confirmation-message { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+        .appointment-details { border: 1px solid #ccc; padding: 10px; margin-bottom: 15px; }
+        .appointment-details p { margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <h1>Appointment Request Confirmed</h1>
+
+    <div class="confirmation-message">
+        <p>Your appointment request has been submitted successfully and is pending doctor approval.</p>
+    </div>
+
+    <div class="appointment-details">
+        <h2>Appointment Details:</h2>
+        <p><strong>Appointment ID:</strong> {{ appointment.appointment_id }}</p>
+        <p><strong>Requested Time:</strong> {{ appointment.appointment_datetime }}</p>
+        <p><strong>Request Time:</strong> {{ appointment.request_time }}</p>
+        <p><strong>Status:</strong> {{ appointment.status|capitalize }}</p>
+    </div>
+
+    <p><a href="/appointment">Request Another Appointment</a> | <a href="/logout">Logout</a></p>
+</body>
+</html>
